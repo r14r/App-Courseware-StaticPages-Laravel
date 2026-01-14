@@ -1,12 +1,6 @@
-.venv
-
-node_modules
-dist
-
-.DS_Store
-
 /.phpunit.cache
 /bootstrap/ssr
+/node_modules
 /public/build
 /public/hot
 /public/storage
@@ -16,6 +10,7 @@ dist
 /resources/js/routes
 /resources/js/wayfinder
 /vendor
+.DS_Store
 .env
 .env.backup
 .env.production
