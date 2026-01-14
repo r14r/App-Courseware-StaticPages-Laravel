@@ -1,24 +1,41 @@
-set shell := ["bash", "-cu"]
+default:
+	cat justfile
 
-# Default task: run dev server
-default: dev
+allow:
+	@direnv allow
+	@direnv allow
+	@direnv reload
 
-# Install npm dependencies
-install:
-	npm install
 
-# Start Vite dev server (0.0.0.0:5173)
-dev:
-	npm run dev -- --host 0.0.0.0 --port 5173
+install-php:
+	@pnpm     install
 
-# Build production assets
+install-composer:
+	@composer install
+
+install: install-php install-composer
+
+setup-env:
+	@laravel-setup-folder
+
 build:
-	npm run build
+	@pnpm run build
 
-# Preview production build (0.0.0.0:4173)
-preview:
-	npm run preview -- --host 0.0.0.0 --port 4173
+watch: dev
 
-# Remove node_modules and dist
-clean:
-	rm -rf node_modules dist
+dev:
+	@pnpm run dev
+
+serve *ARGS:
+	@php artisan serve --host 0.0.0.0 {{ARGS}}
+
+run: serve
+
+run-backend: serve
+
+run-frontend:
+	@pnpm run dev --host 0.0.0.0
+
+migrate:
+	@php artisan migrate
+
