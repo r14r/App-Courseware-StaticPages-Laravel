@@ -1,4 +1,4 @@
-# Courseware Frontend – Vite + Tailwind CSS + Alpine.js + HTMX
+# Courseware in Laravel
 
 This project is a minimal starter for building your courseware frontend with a modern toolchain:
 
