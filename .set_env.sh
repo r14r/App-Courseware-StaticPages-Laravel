@@ -1,6 +1,6 @@
 export ENV_NAME=composer
 export ENV_HOME=$PWD
-export ENV_VSCODE=Courseware_StaticPages_Laravel
+export ENV_VSCODE=Courseware_App
 
 . venv env    init
 . venv vscode init

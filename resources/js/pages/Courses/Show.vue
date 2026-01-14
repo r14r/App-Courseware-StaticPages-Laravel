@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Head, Link, router } from '@inertiajs/vue3';
-import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
+import { computed, nextTick, onMounted, ref } from 'vue';
 
 type TopicEntry = {
     file: string;
@@ -54,6 +54,7 @@ const quizAvailable = ref(false);
 const quizTitle = ref('Quiz');
 const showOnlyTopic = ref(false);
 const isLoading = ref(true);
+let prism: typeof import('prismjs') | null = null;
 
 const currentChapter = computed(() => chapters.value[selectedChapterIndex.value]);
 const quizLink = computed(() => {
@@ -77,6 +78,33 @@ async function fetchJson<T>(path: string): Promise<T | null> {
     } catch {
         return null;
     }
+}
+
+async function ensurePrism(): Promise<void> {
+    if (prism || typeof window === 'undefined') {
+        return;
+    }
+
+    const module = await import('prismjs');
+    await import('prismjs/components/prism-bash');
+    await import('prismjs/components/prism-json');
+    prism = module.default ?? module;
+}
+
+function highlightCode(): void {
+    if (!prism) {
+        return;
+    }
+    prism.highlightAll();
+}
+
+async function updateContent(html: string, title: string, onlyTopic: boolean): Promise<void> {
+    chapterContentHtml.value = html;
+    chapterTitle.value = title;
+    showOnlyTopic.value = onlyTopic;
+    await nextTick();
+    await ensurePrism();
+    highlightCode();
 }
 
 function titleFromFile(file: string): string {
@@ -112,7 +140,7 @@ function renderContent(data: TopicContent | null): string {
 }
 
 async function loadCourse(): Promise<void> {
-    const payload = await fetchJson<Course>(`/data/courses/${props.slug}/course.json`);
+    const payload = await fetchJson<Course>(`/data/courses/${props.slug}/chapters.json`);
     if (!payload) {
         course.value = { title: 'Course not found', description: '' };
         chapters.value = [];
@@ -177,7 +205,15 @@ async function loadChapter(index: number): Promise<void> {
     }
 
     if (topicsIndex && Array.isArray(topicsIndex) && topicsIndex.length) {
-        topics.value = normalizeTopics(topicsIndex);
+        const normalizedTopics = normalizeTopics(topicsIndex);
+        const quizEntry = normalizedTopics.find((topic) => topic.file.toLowerCase().endsWith('quiz.json'));
+        const filteredTopics = normalizedTopics.filter((topic) => !topic.file.toLowerCase().endsWith('quiz.json'));
+
+        chapter.topics = quizEntry
+            ? [...filteredTopics, { file: quizEntry.file, title: quizEntry.title || 'Quiz' }]
+            : filteredTopics;
+
+        topics.value = normalizedTopics;
         selectedTopicIndex.value = 0;
         showOnlyTopic.value = false;
         await loadTopic(selectedTopicIndex.value);
@@ -188,10 +224,7 @@ async function loadChapter(index: number): Promise<void> {
         if (!content) {
             content = await fetchJson<TopicContent>(`/data/courses/${props.slug}/chapters/${chapter.id}/content.json`);
         }
-        chapterContentHtml.value = renderContent(content);
-        chapterTitle.value = chapter.title || '';
-        showOnlyTopic.value = false;
-        await nextTick();
+        await updateContent(renderContent(content), chapter.title || '', false);
     }
 
     let quiz = await fetchJson<Quiz>(`/data/courses/${props.slug}/${chapter.id}/quiz.json`);
@@ -222,10 +255,7 @@ async function loadTopic(index: number): Promise<void> {
 
     if (topicCache.value[filename]) {
         const cached = topicCache.value[filename] as TopicContent;
-        chapterContentHtml.value = renderContent(cached);
-        chapterTitle.value = cached.title || topicEntry.title || chapter.title || '';
-        showOnlyTopic.value = true;
-        await nextTick();
+        await updateContent(renderContent(cached), cached.title || topicEntry.title || chapter.title || '', true);
         return;
     }
 
@@ -236,15 +266,11 @@ async function loadTopic(index: number): Promise<void> {
 
     if (data) {
         topicCache.value[filename] = data;
-        chapterContentHtml.value = renderContent(data);
-        chapterTitle.value = data.title || topicEntry.title || chapter.title || '';
-        showOnlyTopic.value = true;
-        await nextTick();
+        await updateContent(renderContent(data), data.title || topicEntry.title || chapter.title || '', true);
         return;
     }
 
-    chapterContentHtml.value = '<p>No content.</p>';
-    chapterTitle.value = chapter.title || '';
+    await updateContent('<p>No content.</p>', chapter.title || '', false);
 }
 
 function nextChapter(): void {
@@ -278,30 +304,7 @@ function goToQuiz(): void {
     router.visit(quizLink.value);
 }
 
-function setBodyClass(isActive: boolean): void {
-    const className = 'courseware-body';
-    if (isActive) {
-        document.body.classList.add(className);
-    } else {
-        document.body.classList.remove(className);
-    }
-}
-
-function ensureBootstrapScript(): void {
-    const scriptId = 'bootstrap-bundle-cdn';
-    if (document.getElementById(scriptId)) {
-        return;
-    }
-    const script = document.createElement('script');
-    script.id = scriptId;
-    script.src = 'https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js';
-    script.defer = true;
-    document.body.appendChild(script);
-}
-
 onMounted(async () => {
-    setBodyClass(true);
-    ensureBootstrapScript();
     isLoading.value = true;
     await loadCourse();
     if (chapters.value.length) {
@@ -309,134 +312,122 @@ onMounted(async () => {
     }
     isLoading.value = false;
 });
-
-onBeforeUnmount(() => {
-    setBodyClass(false);
-});
 </script>
 
 <template>
-    <Head :title="course?.title || 'Course'">
-        <link
-            rel="stylesheet"
-            href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
-        />
-        <link rel="stylesheet" href="/courseware.css" />
-    </Head>
+    <Head :title="course?.title || 'Course'" />
 
-    <div>
-        <header class="bg-light border-bottom">
-            <div class="container py-3 d-flex align-items-center gap-3 flex-wrap">
-                <Link href="/" class="small text-muted">&larr; All courses</Link>
-                <div class="d-flex align-items-center gap-3 flex-wrap">
+    <div class="min-h-screen bg-background text-foreground">
+        <header class="border-b border-border bg-background/80 backdrop-blur">
+            <div class="mx-auto flex w-full max-w-6xl flex-wrap items-center gap-4 px-6 py-6">
+                <Link href="/" class="text-xs uppercase tracking-[0.35em] text-muted-foreground">All courses</Link>
+                <div class="flex flex-1 flex-wrap items-center gap-4">
                     <img
-                        class="rounded border"
+                        class="h-16 w-16 rounded-2xl border border-border object-cover"
                         :src="`/assets/${props.slug}.png`"
                         :alt="course?.title || 'Course'"
-                        style="max-height: 100px; width: auto"
                     />
                     <div>
-                        <h1 class="h5 mb-0">{{ course?.title || 'Course' }}</h1>
-                        <p class="small text-muted mb-0">{{ course?.description }}</p>
+                        <h1 class="text-xl font-semibold tracking-tight text-foreground">
+                            {{ course?.title || 'Course' }}
+                        </h1>
+                        <p class="text-sm text-muted-foreground">
+                            {{ course?.description }}
+                        </p>
                     </div>
                 </div>
             </div>
         </header>
 
-        <main class="container py-4">
-            <div class="row">
-                <aside class="col-md-3 mb-3">
-                    <div class="card sticky-top" style="top: 1rem">
-                        <div class="card-body">
-                            <h2 class="h6">Chapters</h2>
-                            <div class="accordion" id="chaptersAccordion">
-                                <div v-for="(chapter, index) in chapters" :key="chapter.id" class="accordion-item">
-                                    <h2 class="accordion-header" :id="`heading-${index}`">
+        <main class="mx-auto w-full max-w-6xl px-6 py-10">
+            <div class="grid gap-8 lg:grid-cols-[280px_1fr]">
+                <aside>
+                    <div class="rounded-2xl border border-border bg-card p-5">
+                        <h2 class="text-xs uppercase tracking-[0.3em] text-muted-foreground">Chapters</h2>
+                        <div class="mt-4 space-y-3">
+                            <div
+                                v-for="(chapter, index) in chapters"
+                                :key="chapter.id"
+                                class="rounded-xl border border-border bg-muted/60 p-3"
+                            >
+                                <button
+                                    class="w-full text-left text-sm font-semibold text-foreground"
+                                    @click="loadChapter(index)"
+                                >
+                                    {{ index + 1 }}. {{ chapter.title }}
+                                </button>
+                                <ul
+                                    v-if="chapter.topics && chapter.topics.length && selectedChapterIndex === index"
+                                    class="mt-3 space-y-2 text-sm"
+                                >
+                                    <li v-for="(topic, topicIndex) in chapter.topics" :key="topic.file || topic.title">
                                         <button
-                                            class="accordion-button collapsed"
                                             type="button"
-                                            data-bs-toggle="collapse"
-                                            :data-bs-target="`#collapse-${index}`"
-                                            aria-expanded="false"
-                                            :aria-controls="`collapse-${index}`"
-                                            @click="loadChapter(index)"
+                                            class="w-full rounded-full px-3 py-1 text-left text-muted-foreground transition hover:text-foreground"
+                                            :class="
+                                                selectedChapterIndex === index && selectedTopicIndex === topicIndex
+                                                    ? 'bg-muted text-foreground'
+                                                    : 'text-muted-foreground'
+                                            "
+                                            @click="loadChapter(index).then(() => loadTopic(topicIndex))"
                                         >
-                                            <span>{{ index + 1 }}. {{ chapter.title }}</span>
+                                            {{ topic.title }}
                                         </button>
-                                    </h2>
-                                    <div
-                                        :id="`collapse-${index}`"
-                                        class="accordion-collapse collapse"
-                                        :aria-labelledby="`heading-${index}`"
-                                        data-bs-parent="#chaptersAccordion"
-                                    >
-                                        <div class="accordion-body p-2">
-                                            <ul v-if="chapter.topics && chapter.topics.length" class="list-group list-group-flush">
-                                                <li
-                                                    v-for="(topic, topicIndex) in chapter.topics"
-                                                    :key="topic.file || topic.title"
-                                                    class="list-group-item py-1"
-                                                >
-                                                    <a
-                                                        href="#"
-                                                        class="text-decoration-none"
-                                                        :class="
-                                                            selectedChapterIndex === index && selectedTopicIndex === topicIndex
-                                                                ? 'link-primary fw-semibold'
-                                                                : 'link-dark'
-                                                        "
-                                                        :aria-current="
-                                                            selectedChapterIndex === index && selectedTopicIndex === topicIndex
-                                                                ? 'true'
-                                                                : 'false'
-                                                        "
-                                                        @click.prevent="loadChapter(index).then(() => loadTopic(topicIndex))"
-                                                    >
-                                                        {{ topic.title }}
-                                                    </a>
-                                                </li>
-                                            </ul>
-                                        </div>
-                                    </div>
-                                </div>
+                                    </li>
+                                </ul>
                             </div>
                         </div>
                     </div>
                 </aside>
 
-                <section class="col-md-9">
-                    <div class="card">
-                        <div class="card-body">
-                            <h1 class="h1">{{ chapterTitle || currentChapter?.title || '' }}</h1>
+                <section class="space-y-6">
+                    <div class="rounded-2xl border border-border bg-card p-6">
+                        <div class="flex flex-wrap items-center justify-between gap-4">
+                            <div>
+                                <p class="text-xs uppercase tracking-[0.35em] text-muted-foreground">Lesson</p>
+                                <h2 class="mt-2 text-2xl font-semibold text-foreground">
+                                    {{ chapterTitle || currentChapter?.title || '' }}
+                                </h2>
+                            </div>
+                            <div class="text-xs uppercase tracking-[0.3em] text-muted-foreground">
+                                {{ currentChapter?.id || 'Chapter' }}
+                            </div>
                         </div>
                     </div>
-                    <div class="mt-3"></div>
 
-                    <div class="card">
-                        <div class="card-body">
-                            <article>
-                                <div v-show="showOnlyTopic">
-                                    <div class="d-flex justify-content-between align-items-start mb-2"></div>
-                                    <div v-html="chapterContentHtml" class="mb-3"></div>
-                                </div>
-                                <div v-show="!showOnlyTopic">
-                                    <div v-html="chapterContentHtml" class="mb-3"></div>
-                                </div>
-                            </article>
+                    <div class="rounded-2xl border border-border bg-card p-6">
+                        <div v-if="isLoading" class="space-y-3">
+                            <div class="h-5 w-2/3 animate-pulse rounded-full bg-muted"></div>
+                            <div class="h-4 w-full animate-pulse rounded-full bg-muted/70"></div>
+                            <div class="h-4 w-5/6 animate-pulse rounded-full bg-muted/70"></div>
+                        </div>
+                        <article v-else class="course-content max-w-none" v-html="chapterContentHtml"></article>
 
-                            <div class="d-flex justify-content-between align-items-center mb-3">
-                                <div>
-                                    <button class="btn btn-outline-secondary btn-sm me-2" @click="prevChapter">
-                                        &larr; Prev
-                                    </button>
-                                    <button class="btn btn-outline-secondary btn-sm" @click="nextChapter">
-                                        Next &rarr;
-                                    </button>
-                                </div>
-                                <button v-if="quizAvailable" class="btn btn-primary btn-sm" @click="goToQuiz">
-                                    {{ quizTitle }}
+                        <div class="mt-6 flex flex-wrap items-center justify-between gap-4">
+                            <div class="flex gap-2">
+                                <button
+                                    type="button"
+                                    class="rounded-full border border-border px-4 py-2 text-xs uppercase tracking-[0.3em] text-muted-foreground hover:text-foreground"
+                                    @click="prevChapter"
+                                >
+                                    Prev
+                                </button>
+                                <button
+                                    type="button"
+                                    class="rounded-full border border-border px-4 py-2 text-xs uppercase tracking-[0.3em] text-muted-foreground hover:text-foreground"
+                                    @click="nextChapter"
+                                >
+                                    Next
                                 </button>
                             </div>
+                            <button
+                                v-if="quizAvailable"
+                                type="button"
+                                class="rounded-full bg-foreground px-4 py-2 text-xs font-semibold uppercase tracking-[0.3em] text-background"
+                                @click="goToQuiz"
+                            >
+                                {{ quizTitle }}
+                            </button>
                         </div>
                     </div>
                 </section>

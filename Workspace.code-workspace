@@ -45,6 +45,7 @@
 	"launch": {
 		"version": "0.2.0",
 		"configurations": [
+
 			{
 				"name": "P: with Arguments",
 				"type": "debugpy",
@@ -109,7 +110,13 @@
 			"davidanson.vscode-markdownlint",
 			"moshfeu.compare-folders",
 			"openai.chatgpt",
-			"codexbuild.codex-build"
+			"codexbuild.codex-build",
+			"laravel.vscode-laravel",
+			"devsense.composer-php-vscode",
+			"devsense.phptools-vscode",
+			"xdebug.php-debug",
+			"vue.volar",
+			"xdebug.php-pack"
 		]
 	}
 }

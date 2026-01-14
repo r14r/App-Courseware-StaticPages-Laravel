@@ -1,6 +1,7 @@
 <script setup lang="ts">
+import Icon from '@/components/Icon.vue';
 import { Head, Link } from '@inertiajs/vue3';
-import { onBeforeUnmount, onMounted, ref } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 
 type CourseSummary = {
     slug: string;
@@ -11,6 +12,9 @@ type CourseSummary = {
 
 const courses = ref<CourseSummary[]>([]);
 const isLoading = ref(true);
+const layout = ref<'grid' | 'list'>('grid');
+
+const isGridLayout = computed(() => layout.value === 'grid');
 
 async function fetchJson<T>(path: string): Promise<T | null> {
     try {
@@ -35,6 +39,15 @@ function titleFromSlug(slug: string): string {
         .replace(/\b\w/g, (char) => char.toUpperCase());
 }
 
+function handleImageError(event: Event, title: string): void {
+    const target = event.target as HTMLImageElement | null;
+    if (!target) {
+        return;
+    }
+    target.onerror = null;
+    target.src = `https://placehold.co/600x350?text=${encodeURIComponent(title)}`;
+}
+
 async function loadCourses(): Promise<void> {
     isLoading.value = true;
     const index = await fetchJson<Array<string | { slug?: string }>>('/data/courses/index.json');
@@ -57,7 +70,7 @@ async function loadCourses(): Promise<void> {
             continue;
         }
         const course = await fetchJson<{ title?: string; description?: string; id?: string }>(
-            `/data/courses/${slug}/course.json`,
+            `/data/courses/${encodeURIComponent(slug)}/chapters.json`,
         );
         if (!course) {
             continue;
@@ -75,94 +88,139 @@ async function loadCourses(): Promise<void> {
     isLoading.value = false;
 }
 
-function setBodyClass(isActive: boolean): void {
-    const className = 'courseware-body';
-    if (isActive) {
-        document.body.classList.add(className);
-    } else {
-        document.body.classList.remove(className);
-    }
-}
-
 onMounted(() => {
-    setBodyClass(true);
     loadCourses();
-});
-
-onBeforeUnmount(() => {
-    setBodyClass(false);
 });
 </script>
 
 <template>
-    <Head title="Course Learning Platform">
-        <link
-            rel="stylesheet"
-            href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
-        />
-        <link
-            href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Newsreader:opsz,wght@6..72,400;6..72,500&display=swap"
-            rel="stylesheet"
-        />
-        <link rel="stylesheet" href="/courseware.css" />
-    </Head>
+    <Head title="Course Library" />
 
-    <div class="bg-body-tertiary">
-        <header>
-            <div class="navbar navbar-dark bg-dark shadow-sm">
-                <div class="container">
-                    <Link href="/" class="navbar-brand d-flex align-items-center">
-                        <strong>Courseware</strong>
-                    </Link>
-                </div>
+    <div class="min-h-screen bg-background text-foreground">
+        <header class="border-b border-border bg-background/80 backdrop-blur">
+            <div class="mx-auto flex w-full max-w-6xl items-center justify-between px-6 py-4">
+                <Link href="/" class="text-sm font-semibold uppercase tracking-[0.35em] text-foreground">
+                    Courseware
+                </Link>
+                <span class="text-xs uppercase tracking-[0.35em] text-muted-foreground">Library</span>
             </div>
         </header>
 
-        <main>
-            <section class="py-5 text-center container">
-                <div class="row py-lg-5">
-                    <div class="col-lg-6 col-md-8 mx-auto">
-                        <h1 class="fw-light">Course Library</h1>
-                        <p class="lead text-body-secondary">
+        <main class="mx-auto w-full max-w-6xl px-6 py-12">
+            <section class="mb-10">
+                <p class="text-xs uppercase tracking-[0.4em] text-muted-foreground">Course Catalog</p>
+                <div class="mt-3 flex flex-wrap items-end justify-between gap-6">
+                    <div>
+                        <h1 class="text-4xl font-semibold tracking-tight text-foreground md:text-5xl">
+                            Pick a course and dive in.
+                        </h1>
+                        <p class="mt-3 max-w-2xl text-sm text-muted-foreground">
                             Explore the catalog and open any course to start learning.
                         </p>
+                    </div>
+                    <div class="flex flex-col items-end gap-3">
+                        <div class="rounded-full border border-border bg-card px-4 py-2 text-xs text-muted-foreground">
+                            {{ courses.length }} Courses
+                        </div>
+                        <div class="flex items-center gap-2 rounded-full border border-border bg-card p-1">
+                            <button
+                                type="button"
+                                class="rounded-full p-2 transition"
+                                :class="
+                                    isGridLayout
+                                        ? 'bg-foreground text-background'
+                                        : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                                "
+                                aria-label="Show courses as grid"
+                                :aria-pressed="isGridLayout"
+                                @click="layout = 'grid'"
+                            >
+                                <Icon name="layoutGrid" class="h-4 w-4" />
+                            </button>
+                            <button
+                                type="button"
+                                class="rounded-full p-2 transition"
+                                :class="
+                                    !isGridLayout
+                                        ? 'bg-foreground text-background'
+                                        : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                                "
+                                aria-label="Show courses as list"
+                                :aria-pressed="!isGridLayout"
+                                @click="layout = 'list'"
+                            >
+                                <Icon name="list" class="h-4 w-4" />
+                            </button>
+                        </div>
                     </div>
                 </div>
             </section>
 
-            <div class="album py-5 bg-body-tertiary">
-                <div class="container">
-                    <div v-if="isLoading" class="text-center text-body-secondary">Loading courses...</div>
-                    <div v-else class="row row-cols-1 row-cols-sm-2 row-cols-md-3 g-3">
-                        <div v-for="course in courses" :key="course.id" class="col">
-                            <div class="card shadow-sm h-100 album-card">
-                                <img class="card-img-top" :src="`/assets/${course.slug}.png`" alt="" />
-                                <div class="card-body d-flex flex-column album-card__body">
-                                    <h5 class="card-title">
-                                        <Link
-                                            class="stretched-link text-decoration-none text-body"
-                                            :href="`/courses/${encodeURIComponent(course.slug)}`"
-                                        >
-                                            {{ course.title }}
-                                        </Link>
-                                    </h5>
-                                    <p class="card-text text-body-secondary">
-                                        {{ course.description }}
-                                    </p>
-                                    <div class="d-flex justify-content-between align-items-center mt-auto">
-                                        <div class="btn-group">
-                                            <span class="btn btn-sm btn-outline-secondary" aria-hidden="true">
-                                                Open
-                                            </span>
-                                        </div>
-                                        <small class="text-body-secondary">ID: {{ course.id }}</small>
-                                    </div>
-                                </div>
-                            </div>
+            <section
+                v-if="isLoading"
+                :class="
+                    isGridLayout
+                        ? 'grid gap-6 sm:grid-cols-2 lg:grid-cols-3'
+                        : 'flex flex-col gap-4'
+                "
+            >
+                <div
+                    v-for="n in 6"
+                    :key="n"
+                    class="animate-pulse rounded-2xl bg-muted"
+                    :class="isGridLayout ? 'h-64' : 'h-24'"
+                ></div>
+            </section>
+
+            <section
+                v-else
+                :class="
+                    isGridLayout
+                        ? 'grid gap-6 sm:grid-cols-2 lg:grid-cols-3'
+                        : 'flex flex-col gap-4'
+                "
+            >
+                <Link
+                    v-for="course in courses"
+                    :key="course.slug"
+                    :href="`/courses/${encodeURIComponent(course.slug)}`"
+                    class="group overflow-hidden rounded-2xl border border-border bg-card shadow-sm transition hover:shadow-lg"
+                    :class="
+                        isGridLayout
+                            ? 'flex flex-col hover:-translate-y-1'
+                            : 'flex flex-col sm:flex-row'
+                    "
+                >
+                    <div class="relative" :class="isGridLayout ? '' : 'sm:w-56 sm:shrink-0'">
+                        <img
+                            class="w-full object-cover"
+                            :class="isGridLayout ? 'h-40' : 'h-40 sm:h-full'"
+                            :src="`/assets/${course.slug}.png`"
+                            :alt="course.title"
+                            @error="handleImageError($event, course.title)"
+                        />
+                        <div class="absolute inset-0 bg-gradient-to-t from-background/80 via-transparent"></div>
+                    </div>
+                    <div class="flex flex-1 flex-col gap-4 p-5">
+                        <div class="space-y-2">
+                            <h2 class="text-lg font-semibold text-foreground">
+                                {{ course.title }}
+                            </h2>
+                            <p class="text-sm text-muted-foreground">
+                                {{ course.description }}
+                            </p>
+                        </div>
+                        <div class="mt-auto flex items-center justify-between text-xs text-muted-foreground">
+                            <span>ID: {{ course.id }}</span>
+                            <span
+                                class="rounded-full border border-border bg-muted px-3 py-1 text-xs uppercase tracking-[0.3em] text-foreground transition group-hover:bg-foreground group-hover:text-background"
+                            >
+                                Open
+                            </span>
                         </div>
                     </div>
-                </div>
-            </div>
+                </Link>
+            </section>
         </main>
     </div>
 </template>

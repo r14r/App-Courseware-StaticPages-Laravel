@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DataController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -28,22 +29,14 @@ Route::get('/courses/{slug}/chapters/{chapter}/results', function (string $slug,
     ]);
 })->name('quiz.results');
 
-Route::get('/data', [DataController::class, 'index'])->name('data.index');
-Route::get('/data/{path}', [DataController::class, 'show'])
-    ->where('path', '.*')
-    ->name('data.show');
-Route::post('/data/{path}', [DataController::class, 'store'])
-    ->where('path', '.*')
-    ->name('data.store');
-Route::put('/data/{path}', [DataController::class, 'update'])
-    ->where('path', '.*')
-    ->name('data.update');
-Route::delete('/data/{path}', [DataController::class, 'destroy'])
-    ->where('path', '.*')
-    ->name('data.destroy');
+Route::get('/data',           [DataController::class, 'index']                       )->name('data.index');
+Route::get('/data/{path}',    [DataController::class, 'show']   )->where('path', '.*')->name('data.show');
+Route::post('/data/{path}',   [DataController::class, 'store']  )->where('path', '.*')->name('data.store');
+Route::put('/data/{path}',    [DataController::class, 'update'] )->where('path', '.*')->name('data.update');
+Route::delete('/data/{path}', [DataController::class, 'destroy'])->where('path', '.*')->name('data.destroy');
 
-Route::get('dashboard', function () {
-    return Inertia::render('Dashboard');
-})->middleware(['auth', 'verified'])->name('dashboard');
+Route::get('dashboard', DashboardController::class)
+    ->middleware(['auth', 'verified'])
+    ->name('dashboard');
 
 require __DIR__.'/settings.php';

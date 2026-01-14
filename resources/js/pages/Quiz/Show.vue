@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Head, Link, router } from '@inertiajs/vue3';
-import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue';
+import { computed, onMounted, reactive, ref } from 'vue';
 
 type QuizQuestion = {
     id: string;
@@ -173,17 +173,7 @@ function submitQuiz(): void {
     router.visit(resultsLink.value);
 }
 
-function setBodyClass(isActive: boolean): void {
-    const className = 'courseware-body';
-    if (isActive) {
-        document.body.classList.add(className);
-    } else {
-        document.body.classList.remove(className);
-    }
-}
-
 onMounted(async () => {
-    setBodyClass(true);
     let payload = await fetchJson<RawQuiz>(`/data/courses/${props.slug}/${props.chapter}/quiz.json`);
     if (!payload) {
         payload = await fetchJson<RawQuiz>(`/data/courses/${props.slug}/chapters/${props.chapter}/quiz.json`);
@@ -193,70 +183,77 @@ onMounted(async () => {
         currentIndex.value = 0;
     }
 });
-
-onBeforeUnmount(() => {
-    setBodyClass(false);
-});
 </script>
 
 <template>
-    <Head :title="title">
-        <link
-            rel="stylesheet"
-            href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
-        />
-        <link rel="stylesheet" href="/courseware.css" />
-    </Head>
+    <Head :title="title" />
 
-    <div class="bg-light">
-        <header class="bg-white border-bottom">
-            <div class="container py-3">
-                <h1 class="h5 mb-2">{{ title }}</h1>
-                <div v-if="quiz" class="progress" role="progressbar" :aria-valuenow="progressPercent()" aria-valuemin="0" aria-valuemax="100">
-                    <div class="progress-bar" :style="`width: ${progressPercent()}%`"></div>
+    <div class="min-h-screen bg-background text-foreground">
+        <header class="border-b border-border bg-background/80 backdrop-blur">
+            <div class="mx-auto flex w-full max-w-4xl items-center justify-between px-6 py-5">
+                <div>
+                    <p class="text-xs uppercase tracking-[0.35em] text-muted-foreground">Quiz</p>
+                    <h1 class="mt-2 text-2xl font-semibold text-foreground">{{ title }}</h1>
+                </div>
+                <Link
+                    class="text-xs uppercase tracking-[0.35em] text-muted-foreground hover:text-foreground"
+                    :href="courseLink"
+                >
+                    Back to course
+                </Link>
+            </div>
+            <div v-if="quiz" class="mx-auto w-full max-w-4xl px-6 pb-5">
+                <div class="h-2 rounded-full bg-muted/60">
+                    <div class="h-2 rounded-full bg-foreground" :style="`width: ${progressPercent()}%`"></div>
                 </div>
             </div>
         </header>
 
-        <main class="container py-4">
-            <div class="card">
-                <div class="card-body">
-                    <h2 class="h6 mb-2">{{ title }}</h2>
-                    <div v-show="!quiz">
-                        <p class="text-muted">Loading quiz...</p>
-                    </div>
+        <main class="mx-auto w-full max-w-4xl px-6 py-10">
+            <div class="rounded-2xl border border-border bg-card p-6">
+                <div v-if="!quiz" class="text-sm text-muted-foreground">Loading quiz...</div>
 
-                    <div v-if="quiz">
-                        <div class="mb-3 text-muted small">
-                            Question {{ currentIndex + 1 }} of {{ quiz.questions.length }}
-                        </div>
-                        <form>
-                            <fieldset class="mb-3" v-show="currentQuestion">
-                                <legend class="fw-medium">{{ currentQuestion ? currentQuestion.question : '' }}</legend>
-                                <div>
-                                    <div
-                                        v-for="(option, optionIndex) in currentQuestion?.options || []"
-                                        :key="optionIndex"
-                                        class="form-check mb-2"
-                                    >
-                                        <input
-                                            class="form-check-input"
-                                            type="radio"
-                                            :name="currentQuestion?.id"
-                                            :value="optionIndex"
-                                            v-model.number="answers[currentQuestion?.id || '']"
-                                        />
-                                        <label class="form-check-label">{{ option }}</label>
-                                    </div>
-                                </div>
-                            </fieldset>
-                        </form>
-                        <div class="d-flex gap-2">
-                            <button class="btn btn-primary" type="button" @click="handleNext">
-                                {{ nextLabel() }}
-                            </button>
-                            <Link class="btn btn-outline-secondary" :href="courseLink">Back to course</Link>
-                        </div>
+                <div v-else>
+                    <div class="mb-4 text-sm text-muted-foreground">
+                        Question {{ currentIndex + 1 }} of {{ quiz.questions.length }}
+                    </div>
+                    <form>
+                        <fieldset class="space-y-3">
+                            <legend class="text-lg font-semibold text-foreground">
+                                {{ currentQuestion ? currentQuestion.question : '' }}
+                            </legend>
+                            <div class="space-y-2">
+                                <label
+                                    v-for="(option, optionIndex) in currentQuestion?.options || []"
+                                    :key="optionIndex"
+                                    class="flex cursor-pointer items-start gap-3 rounded-xl border border-border px-4 py-3 text-sm text-muted-foreground transition hover:border-foreground/30 hover:text-foreground"
+                                >
+                                    <input
+                                        class="mt-1"
+                                        type="radio"
+                                        :name="currentQuestion?.id"
+                                        :value="optionIndex"
+                                        v-model.number="answers[currentQuestion?.id || '']"
+                                    />
+                                    <span>{{ option }}</span>
+                                </label>
+                            </div>
+                        </fieldset>
+                    </form>
+                    <div class="mt-6 flex flex-wrap gap-3">
+                        <button
+                            class="rounded-full bg-foreground px-6 py-2 text-xs font-semibold uppercase tracking-[0.3em] text-background"
+                            type="button"
+                            @click="handleNext"
+                        >
+                            {{ nextLabel() }}
+                        </button>
+                        <Link
+                            class="rounded-full border border-border px-6 py-2 text-xs font-semibold uppercase tracking-[0.3em] text-muted-foreground hover:text-foreground"
+                            :href="courseLink"
+                        >
+                            Back to course
+                        </Link>
                     </div>
                 </div>
             </div>

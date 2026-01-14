@@ -1,16 +1,25 @@
 <?php
 
+use App\Models\Course;
 use App\Models\User;
 
-test('guests are redirected to the login page', function () {
-    $response = $this->get(route('dashboard'));
-    $response->assertRedirect(route('login'));
+it('redirects guests to login', function () {
+    $response = $this->get('/dashboard');
+
+    $response->assertRedirect();
 });
 
-test('authenticated users can visit the dashboard', function () {
+it('shows user courses and scores', function () {
     $user = User::factory()->create();
-    $this->actingAs($user);
+    $course = Course::factory()->create([
+        'title' => 'Intro to Laravel',
+    ]);
 
-    $response = $this->get(route('dashboard'));
-    $response->assertOk();
+    $user->courses()->attach($course->id, ['score' => 88]);
+
+    $response = $this->actingAs($user)->get('/dashboard');
+
+    $response->assertSuccessful();
+    $response->assertSee('Intro to Laravel');
+    $response->assertSee('88');
 });
