@@ -20,7 +20,9 @@
 			".vscode.ext": true,
 			".vscode.usr": true,
 			"**/.vscode.ext": true,
-			"**/.vscode.usr": true
+			"**/.vscode.usr": true,
+			"**/vendor": true,
+			".github": true
 		},
 		"explorerExclude.backup": {},
 		"todo-tree.general.tags": [

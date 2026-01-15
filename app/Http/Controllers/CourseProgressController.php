@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Requests\StoreCourseCompletionRequest;
 use App\Http\Requests\StoreQuizResultRequest;
 use App\Models\Course;
+use App\Models\CourseTopicProgress;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Storage;
@@ -38,6 +39,8 @@ class CourseProgressController extends Controller
             ->unique()
             ->values()
             ->all();
+
+        $this->storeTopicProgress($user, $course, $chapterId, $topics);
 
         $user->courses()->updateExistingPivot($course->id, [
             'completed_chapters' => $updatedChapters,
@@ -142,5 +145,40 @@ class CourseProgressController extends Controller
         $user->forceFill([
             'taken_courses' => $updated,
         ])->save();
+    }
+
+    /**
+     * @param  array<int, string>  $topics
+     */
+    private function storeTopicProgress(User $user, Course $course, string $chapterId, array $topics): void
+    {
+        foreach ($topics as $topicKey) {
+            [$topicChapter, $topicId] = $this->parseTopicKey($chapterId, $topicKey);
+
+            CourseTopicProgress::query()->updateOrCreate(
+                [
+                    'user_id' => $user->id,
+                    'course_id' => $course->id,
+                    'chapter_id' => $topicChapter,
+                    'topic_id' => $topicId,
+                ],
+                [
+                    'completed_at' => now(),
+                ]
+            );
+        }
+    }
+
+    /**
+     * @return array{0: string, 1: string}
+     */
+    private function parseTopicKey(string $chapterId, string $topicKey): array
+    {
+        $parts = explode('/', $topicKey, 2);
+        if (count($parts) === 2) {
+            return [$parts[0], $parts[1]];
+        }
+
+        return [$chapterId, $topicKey];
     }
 }

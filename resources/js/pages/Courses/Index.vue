@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import Icon from '@/components/Icon.vue';
-import { Head, Link } from '@inertiajs/vue3';
+import { Head, Link, usePage } from '@inertiajs/vue3';
+import { login } from '@/routes';
 import { computed, onMounted, ref } from 'vue';
 
 type CourseSummary = {
@@ -15,6 +16,8 @@ const isLoading = ref(true);
 const layout = ref<'grid' | 'list'>('grid');
 
 const isGridLayout = computed(() => layout.value === 'grid');
+const page = usePage();
+const isAuthenticated = computed(() => Boolean(page.props.auth?.user));
 
 async function fetchJson<T>(path: string): Promise<T | null> {
     try {
@@ -105,8 +108,17 @@ onMounted(() => {
                 <div class="flex items-center gap-6">
                     <nav class="flex items-center gap-4 text-xs uppercase tracking-[0.35em] text-muted-foreground">
                         <Link href="/" class="transition hover:text-foreground">Courses</Link>
-                        <Link href="/dashboard" class="transition hover:text-foreground">Dashboard</Link>
+                        <Link v-if="isAuthenticated" href="/dashboard" class="transition hover:text-foreground">
+                            Dashboard
+                        </Link>
                     </nav>
+                    <Link
+                        v-if="!isAuthenticated"
+                        :href="login()"
+                        class="rounded-full border border-border px-4 py-2 text-xs font-semibold uppercase tracking-[0.35em] text-foreground transition hover:bg-muted"
+                    >
+                        Login
+                    </Link>
                     <!--
                     <span class="text-xs uppercase tracking-[0.35em] text-muted-foreground">Library</span>
                     -->
@@ -188,15 +200,24 @@ onMounted(() => {
                         : 'flex flex-col gap-4'
                 "
             >
-                <Link
+                <component
                     v-for="course in courses"
                     :key="course.slug"
-                    :href="`/courses/${encodeURIComponent(course.slug)}`"
+                    :is="isAuthenticated ? Link : 'div'"
+                    :href="isAuthenticated ? `/courses/${encodeURIComponent(course.slug)}` : undefined"
+                    :aria-disabled="!isAuthenticated"
+                    :tabindex="isAuthenticated ? 0 : -1"
                     class="group overflow-hidden rounded-2xl border border-border bg-card shadow-sm transition hover:shadow-lg"
                     :class="
                         isGridLayout
-                            ? 'flex flex-col hover:-translate-y-1'
-                            : 'flex flex-col sm:flex-row'
+                            ? [
+                                'flex flex-col',
+                                isAuthenticated ? 'hover:-translate-y-1' : 'cursor-default pointer-events-none',
+                            ]
+                            : [
+                                'flex flex-col sm:flex-row',
+                                isAuthenticated ? '' : 'cursor-default pointer-events-none',
+                            ]
                     "
                 >
                     <div class="relative" :class="isGridLayout ? '' : 'sm:w-56 sm:shrink-0'">
@@ -221,13 +242,18 @@ onMounted(() => {
                         <div class="mt-auto flex items-center justify-between text-xs text-muted-foreground">
                             <span>ID: {{ course.id }}</span>
                             <span
-                                class="rounded-full border border-border bg-muted px-3 py-1 text-xs uppercase tracking-[0.3em] text-foreground transition group-hover:bg-foreground group-hover:text-background"
+                                class="rounded-full border border-border bg-muted px-3 py-1 text-xs uppercase tracking-[0.3em] text-foreground transition"
+                                :class="
+                                    isAuthenticated
+                                        ? 'group-hover:bg-foreground group-hover:text-background'
+                                        : 'opacity-70'
+                                "
                             >
-                                Open
+                                {{ isAuthenticated ? 'Open' : 'Login to access' }}
                             </span>
                         </div>
                     </div>
-                </Link>
+                </component>
             </section>
         </main>
     </div>

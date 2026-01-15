@@ -15,6 +15,7 @@
         "@laravel/vite-plugin-wayfinder": "^0.1.7",
         "@tailwindcss/vite": "^4.1.18",
         "@types/node": "^25.0.8",
+        "@types/prismjs": "^1.26.5",
         "@vitejs/plugin-vue": "^6.0.3",
         "@vue/eslint-config-typescript": "^14.6.0",
         "concurrently": "^9.2.1",

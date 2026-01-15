@@ -19,6 +19,7 @@ class ChapterFactory extends Factory
     {
         return [
             'course_id' => Course::factory(),
+            'slug' => $this->faker->slug(3),
             'title' => $this->faker->sentence(3),
             'position' => $this->faker->numberBetween(1, 20),
         ];

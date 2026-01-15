@@ -19,11 +19,13 @@ class DashboardController extends Controller
             ->get()
             ->map(function (Course $course): array {
                 $chaptersCount = $course->chapters_count;
+                $chapters = [];
                 $path = "courses/{$course->slug}/chapters.json";
                 if (Storage::disk('local')->exists($path)) {
                     $payload = json_decode(Storage::disk('local')->get($path), true);
                     if (is_array($payload) && isset($payload['chapters']) && is_array($payload['chapters'])) {
                         $chaptersCount = count($payload['chapters']);
+                        $chapters = $payload['chapters'];
                     }
                 }
 
@@ -39,6 +41,7 @@ class DashboardController extends Controller
                     'chapters' => $chaptersCount,
                     'completed_chapters' => $this->countProgressValue($course->pivot?->completed_chapters),
                     'completed_topics' => $this->countProgressValue($course->pivot?->completed_topics),
+                    'total_topics' => $this->countTotalTopics($course->slug, $chapters),
                 ];
             });
 
@@ -60,5 +63,38 @@ class DashboardController extends Controller
         }
 
         return 0;
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $chapters
+     */
+    private function countTotalTopics(string $slug, array $chapters): int
+    {
+        $total = 0;
+
+        foreach ($chapters as $chapter) {
+            if (! is_array($chapter)) {
+                continue;
+            }
+
+            $chapterId = $chapter['id'] ?? null;
+            if (! is_string($chapterId) || $chapterId === '') {
+                continue;
+            }
+
+            $topicsPath = "courses/{$slug}/{$chapterId}/topics.json";
+            if (! Storage::disk('local')->exists($topicsPath)) {
+                continue;
+            }
+
+            $payload = json_decode(Storage::disk('local')->get($topicsPath), true);
+            if (! is_array($payload)) {
+                continue;
+            }
+
+            $total += count($payload);
+        }
+
+        return $total;
     }
 }

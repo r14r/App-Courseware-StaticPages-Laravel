@@ -16,6 +16,7 @@ class Topic extends Model
      */
     protected $fillable = [
         'chapter_id',
+        'slug',
         'title',
         'content',
         'content_html',

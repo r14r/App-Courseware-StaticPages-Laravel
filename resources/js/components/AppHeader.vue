@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { InertiaLinkProps } from '@inertiajs/vue3';
-import { Link, usePage } from '@inertiajs/vue3';
-import { BookOpen, Folder, LayoutGrid, Menu, Search } from 'lucide-vue-next';
+import { Link, router, usePage } from '@inertiajs/vue3';
+import { BookOpen, LayoutGrid, LogOut, Menu, Search, Shield, User } from 'lucide-vue-next';
 import { computed } from 'vue';
 
 import AppLogo from '@/components/AppLogo.vue';
@@ -27,17 +27,12 @@ import {
     SheetTitle,
     SheetTrigger,
 } from '@/components/ui/sheet';
-import {
-    Tooltip,
-    TooltipContent,
-    TooltipProvider,
-    TooltipTrigger,
-} from '@/components/ui/tooltip';
 import UserMenuContent from '@/components/UserMenuContent.vue';
 import { useActiveUrl } from '@/composables/useActiveUrl';
 import { getInitials } from '@/composables/useInitials';
-import { toUrl } from '@/lib/utils';
-import { dashboard } from '@/routes';
+import { dashboard, logout } from '@/routes';
+import { index as coursesIndex } from '@/routes/courses';
+import { edit as profileEdit } from '@/routes/profile';
 import type { BreadcrumbItem, NavItem } from '@/types';
 
 interface Props {
@@ -58,26 +53,39 @@ function activeItemStyles(url: NonNullable<InertiaLinkProps['href']>) {
         : '';
 }
 
-const mainNavItems: NavItem[] = [
-    {
-        title: 'Dashboard',
-        href: dashboard(),
-        icon: LayoutGrid,
-    },
-];
+const mainNavItems = computed<NavItem[]>(() => {
+    const items: NavItem[] = [
+        {
+            title: 'Dashboard',
+            href: dashboard(),
+            icon: LayoutGrid,
+        },
+        {
+            title: 'Courses',
+            href: coursesIndex(),
+            icon: BookOpen,
+        },
+        {
+            title: 'Profile',
+            href: profileEdit(),
+            icon: User,
+        },
+    ];
 
-const rightNavItems: NavItem[] = [
-    {
-        title: 'Repository',
-        href: 'https://github.com/laravel/vue-starter-kit',
-        icon: Folder,
-    },
-    {
-        title: 'Documentation',
-        href: 'https://laravel.com/docs/starter-kits#vue',
-        icon: BookOpen,
-    },
-];
+    if (auth.value?.user?.user_type === 'Admin') {
+        items.push({
+            title: 'Admin',
+            href: '/admin',
+            icon: Shield,
+        });
+    }
+
+    return items;
+});
+
+const handleLogout = () => {
+    router.flushAll();
+};
 </script>
 
 <template>
@@ -125,21 +133,16 @@ const rightNavItems: NavItem[] = [
                                     </Link>
                                 </nav>
                                 <div class="flex flex-col space-y-4">
-                                    <a
-                                        v-for="item in rightNavItems"
-                                        :key="item.title"
-                                        :href="toUrl(item.href)"
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        class="flex items-center space-x-2 text-sm font-medium"
+                                    <Link
+                                        :href="logout()"
+                                        as="button"
+                                        method="post"
+                                        class="flex items-center space-x-2 text-sm font-medium text-red-600"
+                                        @click="handleLogout"
                                     >
-                                        <component
-                                            v-if="item.icon"
-                                            :is="item.icon"
-                                            class="h-5 w-5"
-                                        />
-                                        <span>{{ item.title }}</span>
-                                    </a>
+                                        <LogOut class="h-5 w-5" />
+                                        <span>Log out</span>
+                                    </Link>
                                 </div>
                             </div>
                         </SheetContent>
@@ -196,44 +199,18 @@ const rightNavItems: NavItem[] = [
                                 class="size-5 opacity-80 group-hover:opacity-100"
                             />
                         </Button>
-
-                        <div class="hidden space-x-1 lg:flex">
-                            <template
-                                v-for="item in rightNavItems"
-                                :key="item.title"
-                            >
-                                <TooltipProvider :delay-duration="0">
-                                    <Tooltip>
-                                        <TooltipTrigger>
-                                            <Button
-                                                variant="ghost"
-                                                size="icon"
-                                                as-child
-                                                class="group h-9 w-9 cursor-pointer"
-                                            >
-                                                <a
-                                                    :href="toUrl(item.href)"
-                                                    target="_blank"
-                                                    rel="noopener noreferrer"
-                                                >
-                                                    <span class="sr-only">{{
-                                                        item.title
-                                                    }}</span>
-                                                    <component
-                                                        :is="item.icon"
-                                                        class="size-5 opacity-80 group-hover:opacity-100"
-                                                    />
-                                                </a>
-                                            </Button>
-                                        </TooltipTrigger>
-                                        <TooltipContent>
-                                            <p>{{ item.title }}</p>
-                                        </TooltipContent>
-                                    </Tooltip>
-                                </TooltipProvider>
-                            </template>
-                        </div>
                     </div>
+
+                    <Link
+                        class="hidden items-center gap-2 rounded-md border border-border px-3 py-2 text-sm font-medium text-red-600 transition hover:bg-red-50 lg:flex dark:hover:bg-red-950"
+                        :href="logout()"
+                        as="button"
+                        method="post"
+                        @click="handleLogout"
+                    >
+                        <LogOut class="h-4 w-4" />
+                        Log out
+                    </Link>
 
                     <DropdownMenu>
                         <DropdownMenuTrigger :as-child="true">

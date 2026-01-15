@@ -1,29 +1,9 @@
-# Courseware Laravel tasks
-
-set shell := ["bash", "-cu"]
-
-
 default:
-    @just -l
-    
-install:
-    composer install
-    npm install
+	@just -l
 
-update:
-    composer update
-    npm update
-    
-build:
-    npm run build
+
+migrate:
+	@php artisan migrate --force
 
 run:
-    composer run dev
-
-clear-cache:
-    php artisan optimize:clear
-
-check:
-    vendor/bin/pint --dirty
-    php artisan test --compact
-    npm run lint
+	@composer run dev

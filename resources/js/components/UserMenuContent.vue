@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Link, router } from '@inertiajs/vue3';
-import { LogOut, Settings } from 'lucide-vue-next';
+import { LogOut, User } from 'lucide-vue-next';
 
 import {
     DropdownMenuGroup,
@@ -11,10 +11,10 @@ import {
 import UserInfo from '@/components/UserInfo.vue';
 import { logout } from '@/routes';
 import { edit } from '@/routes/profile';
-import type { User } from '@/types';
+import type { User as UserType } from '@/types';
 
 interface Props {
-    user: User;
+    user: UserType;
 }
 
 const handleLogout = () => {
@@ -34,8 +34,8 @@ defineProps<Props>();
     <DropdownMenuGroup>
         <DropdownMenuItem :as-child="true">
             <Link class="block w-full cursor-pointer" :href="edit()" prefetch>
-                <Settings class="mr-2 h-4 w-4" />
-                Settings
+                <User class="mr-2 h-4 w-4" />
+                Profile
             </Link>
         </DropdownMenuItem>
     </DropdownMenuGroup>

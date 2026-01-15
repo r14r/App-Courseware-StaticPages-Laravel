@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\Course;
+use App\Models\CourseTopicProgress;
 use App\Models\User;
 
 it('stores chapter completion on the course pivot', function () {
@@ -32,6 +33,14 @@ it('stores chapter completion on the course pivot', function () {
         ->and($completedChapters)->toContain('001-intro')
         ->and($completedTopics)->toContain('001-intro/001-topic.json', '001-intro/002-topic.json');
     expect($user->taken_courses)->toContain($course->id);
+
+    $topicProgress = CourseTopicProgress::query()
+        ->where('user_id', $user->id)
+        ->where('course_id', $course->id)
+        ->get();
+
+    expect($topicProgress)->toHaveCount(2);
+    expect($topicProgress->pluck('topic_id')->all())->toContain('001-topic.json', '002-topic.json');
 });
 
 it('stores quiz results on the course pivot', function () {

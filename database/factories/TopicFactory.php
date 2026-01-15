@@ -19,6 +19,7 @@ class TopicFactory extends Factory
     {
         return [
             'chapter_id' => Chapter::factory(),
+            'slug' => $this->faker->slug(3),
             'title' => $this->faker->sentence(4),
             'content' => [
                 $this->faker->paragraph(),
